@@ -1,47 +1,54 @@
 'use strict';
 
-
-/* 
+/*
 	GameLobby constructs a new game lobby
 	id - uuid of game loby
-	gamer1 -  a SockJS connection instance of a gamer 
-	gamer2 - a connection instance of a gamer
+	player1 -  a SockJS connection instance of a player
+	player2 - a connection instance of a player
 */
-function GameLobby (id, gamer1, gamer2, startCells, size, cleanup) {
+function GameLobby(id, player1, player2, startCells, size, cleanup) {
 	this.id = id;
-	this.gamer1 = gamer1;
-	this.gamer2 = gamer2;
+  this.players = {
+    1: player1,
+    2: player2
+  };
+
 	this.startCells = startCells;
 	this.size = size;
 	this.cleanup = cleanup;
 
-	this.setup(gamer1, 1);
-	this.setup(gamer2, 2);
+	this.setup(1);
+	this.setup(2);
 }
 
-GameLobby.prototype.setup = function(gamer, playerNum) {
-    var self = this;
-    gamer.write(JSON.stringify({player: playerNum, startCells: this.startCells, size: this.size, start: true}));
-    
-    gamer.on('data', function(data) {
-        self.emit(data);
-    });
-    gamer.on('close', function() {
-        gamer.write(JSON.stringify({player: 0, dead: true}));
-        self.gamer1.close();
-		self.gamer2.close();
-		self.cleanup(self.id);
-    });
+GameLobby.prototype.setup = function (playerNum) {
+  var self = this;
+
+  this.players[playerNum].write(JSON.stringify({
+    player: playerNum,
+    startCells: this.startCells,
+    size: this.size,
+    start: true
+  }));
+
+  this.players[playerNum].on('data', function (data) {
+    self.emit(data);
+  });
+
+  this.players[playerNum].on('close', function () {
+    self.emit(JSON.stringify({ player: playerNum, dead: true, gameEnd: true }));
+    self.cleanup(self.id);
+  });
 };
 
-GameLobby.prototype.emit = function(msg) {
-	this.gamer1.write(msg);
-	this.gamer2.write(msg);
-	if (msg.gameEnd) {
-		this.gamer1.close();
-		this.gamer2.close();
+GameLobby.prototype.emit = function (msg) {
+	this.players[1].write(msg);
+	this.players[2].write(msg);
+
+  msg = JSON.parse(msg);
+
+	if (msg.gameEnd)
 		this.cleanup(this.id);
-	}
 };
 
 module.exports = GameLobby;
