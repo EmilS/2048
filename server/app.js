@@ -7,7 +7,8 @@ var http = require('http'),
     sockjs = require('sockjs'),
     GameLobby = require('./GameLobby'),
     redis = require("redis"),
-    client = redis.createClient(),
+    redisURL = url.parse(process.env.REDISCLOUD_URL),
+    client = redis.createClient(redisURL.port, redisURL.hostname, {no_ready_check: true}),
     gamersHashMap = {},
     gamesBeingPlayed = 0,
     gameStats = JSON.stringify({numPlayers: 0, numGames: 0}),
@@ -15,6 +16,7 @@ var http = require('http'),
     channelId,
     startLocations;
 
+client.auth(redisURL.auth.split(":")[1]);
 var CROSS_ORIGIN_HEADERS = {};
 CROSS_ORIGIN_HEADERS['Content-Type'] = 'text/plain';
 CROSS_ORIGIN_HEADERS['Access-Control-Allow-Origin'] = '*';
@@ -50,15 +52,15 @@ sockjsServer.on('connection', function(io) {
 var startCellLocations = function (numLocations, size) {
   var unique = function (arr, obj) {
     for (var i = 0, len = arr.length; i < len; i++) {
-      if (arr[i].x === obj.x && arr[i].y === obj.y) 
+      if (arr[i].x === obj.x && arr[i].y === obj.y)
         return false;
     }
     return true;
   };
   var getRandomInt = function (min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
-  }  
-  
+  }
+
   var loc = [];
   for (var i = 0; i < numLocations; i++) {
     var obj = {x: getRandomInt(0, size - 1), y: getRandomInt(0, size - 1), value: (Math.random() < 0.9 ? 2 : 4)};
